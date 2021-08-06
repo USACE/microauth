@@ -99,7 +99,7 @@ func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		jwtUser := JwtClaim{
 			Sub:      claims["sub"].(string),
-			Aud:      getArray(claims["aud"]),
+			Aud:      marshalAud(claims["aud"]),
 			Roles:    getArray(claims["roles"]),
 			UserName: claims["preferred_username"].(string),
 			Email:    claims["email"].(string),
