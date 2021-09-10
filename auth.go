@@ -12,14 +12,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type AuthRouteFunction func(c echo.Context, roles []int, claims JwtClaim) bool
-type AuthMiddlewareFunction func(c echo.Context, claims JwtClaim) bool
+type AuthRouteFunction func(c echo.Context, store interface{}, roles []int, claims JwtClaim) bool
+type AuthMiddlewareFunction func(c echo.Context, store interface{}, claims JwtClaim) bool
 
 type Auth struct {
 	VerifyKey      *rsa.PublicKey
 	Aud            string
 	AuthRoute      AuthRouteFunction
 	AuthMiddleware AuthMiddlewareFunction
+	Store          interface{}
 }
 
 func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
@@ -27,11 +28,11 @@ func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		claims, err := a.marshalJwt(tokenString)
-		if err != nil || contains_string(claims.Aud, a.Aud) {
+		if err != nil || Contains_string(claims.Aud, a.Aud) {
 			log.Print(err)
 			return echo.NewHTTPError(http.StatusUnauthorized, "bad token")
 		}
-		if a.AuthMiddleware != nil && a.AuthMiddleware(c, claims) {
+		if a.AuthMiddleware != nil && a.AuthMiddleware(c, a.Store, claims) {
 			return handler(c)
 		} else {
 			return echo.NewHTTPError(http.StatusUnauthorized, "")
@@ -56,11 +57,11 @@ func (a *Auth) AuthorizeForm(handler echo.HandlerFunc, roles ...int) echo.Handle
 
 func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c echo.Context, roles []int) error {
 	claims, err := a.marshalJwt(tokenString)
-	if err != nil || contains_string(claims.Aud, a.Aud) {
+	if err != nil || Contains_string(claims.Aud, a.Aud) {
 		log.Print(err)
 		return echo.NewHTTPError(http.StatusUnauthorized, "bad token")
 	}
-	if a.AuthRoute != nil && a.AuthRoute(c, roles, claims) {
+	if a.AuthRoute != nil && a.AuthRoute(c, a.Store, roles, claims) {
 		return handler(c)
 	} else {
 		return echo.NewHTTPError(http.StatusUnauthorized, "")
@@ -135,7 +136,7 @@ func marshalAud(aud interface{}) []string {
 	return a
 }
 
-func contains(a []int, x int) bool {
+func Contains(a []int, x int) bool {
 	for _, n := range a {
 		if x == n {
 			return true
@@ -144,7 +145,7 @@ func contains(a []int, x int) bool {
 	return false
 }
 
-func contains_string(s []string, t string) bool {
+func Contains_string(s []string, t string) bool {
 	for _, n := range s {
 		if t == n {
 			return true
