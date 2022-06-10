@@ -3,9 +3,11 @@ package microauth
 import (
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -17,6 +19,7 @@ type AuthMiddlewareFunction func(c echo.Context, store interface{}, claims JwtCl
 
 type Auth struct {
 	VerifyKey      *rsa.PublicKey
+	VerifyKeys     []*rsa.PublicKey
 	Aud            string
 	AuthRoute      AuthRouteFunction
 	AuthMiddleware AuthMiddlewareFunction
@@ -68,25 +71,21 @@ func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c ech
 	}
 }
 
-func loadKeyFile(filePath string) (*rsa.PublicKey, error) {
-	publicKeyBytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	return jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
-}
-
-func (a *Auth) LoadVerificationKey(filePath string) error {
-	publicKeyBytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-	pk, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
+func (a *Auth) LoadVerificationKey(bytes []byte) error {
+	pk, err := jwt.ParseRSAPublicKeyFromPEM(bytes)
 	if err != nil {
 		return err
 	}
 	a.VerifyKey = pk
 	return nil
+}
+
+func (a *Auth) LoadVerificationKeyFile(filePath string) error {
+	publicKeyBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+	return a.LoadVerificationKey(publicKeyBytes)
 }
 
 func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
@@ -110,6 +109,63 @@ func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 	} else {
 		return JwtClaim{}, errors.New("Invalid Token")
 	}
+}
+
+func (a *Auth) LoadVerificationKeys(fieldPath string) error {
+	files, err := ioutil.ReadDir(fieldPath)
+	if err != nil {
+		return err
+	}
+	for _, v := range files {
+		if ext := filepath.Ext(v.Name()); ext == ".pem" {
+			fmt.Printf("Loading Public Key: %s\n", v.Name())
+			pk, err := loadKeyFile(fieldPath + "/" + v.Name())
+			if err != nil {
+				return err
+			}
+			a.VerifyKeys = append(a.VerifyKeys, pk)
+		}
+	}
+	return nil
+}
+
+func (a *Auth) marshalJwts(tokenString string) (JwtClaim, error) {
+	var token *jwt.Token = nil
+	var err error
+	for _, verificationKey := range a.VerifyKeys {
+		token, err = jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return verificationKey, nil
+		})
+		if err == nil {
+			break
+		}
+	}
+
+	if token == nil {
+		return JwtClaim{}, errors.New("Invalid Token")
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		jwtUser := JwtClaim{
+			Sub:      claims["sub"].(string),
+			Aud:      marshalAud(claims["aud"]),
+			Roles:    getArray(claims["roles"]),
+			UserName: claims["preferred_username"].(string),
+			Email:    claims["email"].(string),
+			Claims:   claims,
+		}
+		return jwtUser, nil
+	} else {
+		return JwtClaim{}, errors.New("Invalid Token")
+	}
+
+}
+
+func loadKeyFile(filePath string) (*rsa.PublicKey, error) {
+	publicKeyBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
 }
 
 func getArray(data interface{}) []string {
