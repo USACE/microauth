@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-var testurl string = "dev2.crrel.mil/auth/realms/dls"
-var wantAccountService string = "https://dev2.crrel.mil/auth/realms/dls/account"
+var testurl string = "dev2.crrel.mil/auth/realms/cwbi"
+var wantAccountService string = "https://dev2.crrel.mil/auth/realms/cwbi/account"
 
 func TestFetchRealmInfo(t *testing.T) {
-	result, err := FetchRealmInfo(testurl)
+	result, err := FetchKeycloakRealmInfo(testurl)
 	if err != nil {
 		t.Error(err)
 	}

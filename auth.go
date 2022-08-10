@@ -14,11 +14,18 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+//Public Key Resource Types
+const (
+	KeyFile     int = 0 //public key is retrieved from a file using the provided file path
+	KeyString       = 1 //public key is retrieved as a string from the environment
+	KeycloakUrl     = 2 //Public key is retrieved from keycloak service at the provided url
+)
+
 type AuthRouteFunction func(c echo.Context, store interface{}, roles []int, claims JwtClaim) bool
 type AuthMiddlewareFunction func(c echo.Context, store interface{}, claims JwtClaim) bool
 
 type Auth struct {
-	VerifyKey      *rsa.PublicKey
+	//VerifyKey      *rsa.PublicKey
 	VerifyKeys     []*rsa.PublicKey
 	Aud            string
 	AuthRoute      AuthRouteFunction
@@ -71,12 +78,35 @@ func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c ech
 	}
 }
 
-func (a *Auth) LoadVerificationKey(bytes []byte) error {
-	pk, err := jwt.ParseRSAPublicKeyFromPEM(bytes)
+type VerificationKeyOptions struct {
+	Source int
+	URI    string
+	Data   string
+}
+
+func (a *Auth) LoadVerificationKey(options VerificationKeyOptions) error {
+	switch options.Source {
+	case KeyString:
+		return a.SetVerificationKey(options.Data)
+	case KeyFile:
+		return a.LoadVerificationKeyFile(options.URI)
+	case KeycloakUrl:
+		realmInfo, err := FetchKeycloakRealmInfo(options.URI)
+		if err != nil {
+			return err
+		}
+		return a.SetVerificationKey(realmInfo.PublicKey)
+	}
+	return errors.New("Invalid Public Key Source")
+}
+
+func (a *Auth) SetVerificationKey(key string) error {
+	key = fmt.Sprintf("-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----", key)
+	pk, err := jwt.ParseRSAPublicKeyFromPEM([]byte(key))
 	if err != nil {
 		return err
 	}
-	a.VerifyKey = pk
+	a.VerifyKeys = append(a.VerifyKeys, pk)
 	return nil
 }
 
@@ -85,13 +115,22 @@ func (a *Auth) LoadVerificationKeyFile(filePath string) error {
 	if err != nil {
 		return err
 	}
-	return a.LoadVerificationKey(publicKeyBytes)
+	return a.loadVerificationKey(publicKeyBytes)
+}
+
+func (a *Auth) loadVerificationKey(bytes []byte) error {
+	pk, err := jwt.ParseRSAPublicKeyFromPEM(bytes)
+	if err != nil {
+		return err
+	}
+	a.VerifyKeys = append(a.VerifyKeys, pk)
+	return nil
 }
 
 func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return a.VerifyKey, nil
+		return a.VerifyKeys[0], nil
 	})
 	if err != nil {
 		return JwtClaim{}, err

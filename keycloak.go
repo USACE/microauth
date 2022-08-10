@@ -17,15 +17,15 @@ type KeycloakRealm struct {
 
 /*
 	Fetch the public key from a keycloak instance.
-	realm string should be the full url to the realm
+	realmUri string should be the full url to the realm
 	{host}/{context}/realms/{realm}
 	for example
 	mykeycloak/auth/realms/myrealm
 */
-func FetchRealmInfo(realm string) (KeycloakRealm, error) {
+func FetchKeycloakRealmInfo(realmUri string) (KeycloakRealm, error) {
 	info := KeycloakRealm{}
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	url := fmt.Sprintf("https://%s", realm)
+	url := fmt.Sprintf("https://%s", realmUri)
 	resp, err := http.Get(url)
 	if err != nil {
 		return info, err
