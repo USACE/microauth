@@ -138,7 +138,7 @@ func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 		jwtUser := JwtClaim{
 			Sub:      claims["sub"].(string),
 			Aud:      marshalAud(claims["aud"]),
-			Roles:    getArray(claims["roles"]),
+			Roles:    readClaimArray(claims["roles"]),
 			UserName: claims["preferred_username"].(string),
 			Email:    claims["email"].(string),
 			Claims:   claims,
