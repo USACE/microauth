@@ -184,11 +184,11 @@ func (a *Auth) marshalJwts(tokenString string) (JwtClaim, error) {
 	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		jwtUser := JwtClaim{
-			Sub:      claims["sub"].(string),
+			Sub:      readClaim("sub", claims),
 			Aud:      marshalAud(claims["aud"]),
-			Roles:    getArray(claims["roles"]),
-			UserName: claims["preferred_username"].(string),
-			Email:    claims["email"].(string),
+			Roles:    readClaimArray(claims["roles"]),
+			UserName: readClaim("preferred_username", claims),
+			Email:    readClaim("email", claims),
 			Claims:   claims,
 		}
 		return jwtUser, nil
@@ -196,6 +196,14 @@ func (a *Auth) marshalJwts(tokenString string) (JwtClaim, error) {
 		return JwtClaim{}, errors.New("Invalid Token")
 	}
 
+}
+
+func readClaim(claimname string, claims jwt.MapClaims) string {
+	claim, ok := claims[claimname]
+	if !ok || claim == nil {
+		return ""
+	}
+	return claim.(string)
 }
 
 func loadKeyFile(filePath string) (*rsa.PublicKey, error) {
@@ -206,7 +214,7 @@ func loadKeyFile(filePath string) (*rsa.PublicKey, error) {
 	return jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
 }
 
-func getArray(data interface{}) []string {
+func readClaimArray(data interface{}) []string {
 	a := []string{}
 	if data != nil {
 		claimarray := data.([]interface{})
