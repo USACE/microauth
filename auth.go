@@ -79,19 +79,18 @@ func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c ech
 }
 
 type VerificationKeyOptions struct {
-	Source int
-	URI    string
-	Data   string
+	KeySource int
+	KeyVal    string
 }
 
 func (a *Auth) LoadVerificationKey(options VerificationKeyOptions) error {
-	switch options.Source {
+	switch options.KeySource {
 	case KeyString:
-		return a.SetVerificationKey(options.Data)
+		return a.SetVerificationKey(options.KeyVal)
 	case KeyFile:
-		return a.LoadVerificationKeyFile(options.URI)
+		return a.LoadVerificationKeyFile(options.KeyVal)
 	case KeycloakUrl:
-		realmInfo, err := FetchKeycloakRealmInfo(options.URI)
+		realmInfo, err := FetchKeycloakRealmInfo(options.KeyVal)
 		if err != nil {
 			return err
 		}
