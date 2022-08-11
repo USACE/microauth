@@ -136,11 +136,11 @@ func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		jwtUser := JwtClaim{
-			Sub:      claims["sub"].(string),
+			Sub:      readClaim("sub", claims),
 			Aud:      marshalAud(claims["aud"]),
 			Roles:    readClaimArray(claims["roles"]),
-			UserName: claims["preferred_username"].(string),
-			Email:    claims["email"].(string),
+			UserName: readClaim("preferred_username", claims),
+			Email:    readClaim("email", claims),
 			Claims:   claims,
 		}
 		return jwtUser, nil
