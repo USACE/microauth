@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-//Public Key Resource Types
+// Public Key Resource Types
 const (
 	KeyFile     int = 0 //public key is retrieved from a file using the provided file path
 	KeyString       = 1 //public key is retrieved as a string from the environment
