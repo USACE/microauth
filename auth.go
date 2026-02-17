@@ -4,9 +4,9 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,12 +17,12 @@ import (
 // Public Key Resource Types
 const (
 	KeyFile     int = 0 //public key is retrieved from a file using the provided file path
-	KeyString       = 1 //public key is retrieved as a string from the environment
-	KeycloakUrl     = 2 //Public key is retrieved from keycloak service at the provided url
+	KeyString   int = 1 //public key is retrieved as a string from the environment
+	KeycloakUrl int = 2 //Public key is retrieved from keycloak service at the provided url
 )
 
-type AuthRouteFunction func(c echo.Context, store interface{}, roles []int, claims JwtClaim) bool
-type AuthMiddlewareFunction func(c echo.Context, store interface{}, claims JwtClaim) bool
+type AuthRouteFunction func(c *echo.Context, store interface{}, roles []int, claims JwtClaim) bool
+type AuthMiddlewareFunction func(c *echo.Context, store interface{}, claims JwtClaim) bool
 
 type Auth struct {
 	//VerifyKey      *rsa.PublicKey
@@ -34,7 +34,7 @@ type Auth struct {
 }
 
 func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		claims, err := a.marshalJwt(tokenString)
@@ -51,7 +51,7 @@ func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func (a *Auth) AuthorizeRoute(handler echo.HandlerFunc, roles ...int) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		return a.authorization(tokenString, handler, c, roles)
@@ -59,13 +59,13 @@ func (a *Auth) AuthorizeRoute(handler echo.HandlerFunc, roles ...int) echo.Handl
 }
 
 func (a *Auth) AuthorizeForm(handler echo.HandlerFunc, roles ...int) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		tokenString := c.FormValue("authorization")
 		return a.authorization(tokenString, handler, c, roles)
 	}
 }
 
-func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c echo.Context, roles []int) error {
+func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c *echo.Context, roles []int) error {
 	claims, err := a.marshalJwt(tokenString)
 	if err != nil || Contains_string(claims.Aud, a.Aud) {
 		log.Print(err)
@@ -110,7 +110,7 @@ func (a *Auth) SetVerificationKey(key string) error {
 }
 
 func (a *Auth) LoadVerificationKeyFile(filePath string) error {
-	publicKeyBytes, err := ioutil.ReadFile(filePath)
+	publicKeyBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func (a *Auth) marshalJwt(tokenString string) (JwtClaim, error) {
 }
 
 func (a *Auth) LoadVerificationKeys(fieldPath string) error {
-	files, err := ioutil.ReadDir(fieldPath)
+	files, err := os.ReadDir(fieldPath)
 	if err != nil {
 		return err
 	}
@@ -167,36 +167,36 @@ func (a *Auth) LoadVerificationKeys(fieldPath string) error {
 	return nil
 }
 
-func (a *Auth) marshalJwts(tokenString string) (JwtClaim, error) {
-	var token *jwt.Token = nil
-	var err error
-	for _, verificationKey := range a.VerifyKeys {
-		token, err = jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return verificationKey, nil
-		})
-		if err == nil {
-			break
-		}
-	}
+// func (a *Auth) marshalJwts(tokenString string) (JwtClaim, error) {
+// 	var token *jwt.Token = nil
+// 	var err error
+// 	for _, verificationKey := range a.VerifyKeys {
+// 		token, err = jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+// 			return verificationKey, nil
+// 		})
+// 		if err == nil {
+// 			break
+// 		}
+// 	}
 
-	if token == nil {
-		return JwtClaim{}, errors.New("Invalid Token")
-	}
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		jwtUser := JwtClaim{
-			Sub:      readClaim("sub", claims),
-			Aud:      marshalAud(claims["aud"]),
-			Roles:    readClaimArray(claims["roles"]),
-			UserName: readClaim("preferred_username", claims),
-			Email:    readClaim("email", claims),
-			Claims:   claims,
-		}
-		return jwtUser, nil
-	} else {
-		return JwtClaim{}, errors.New("Invalid Token")
-	}
+// 	if token == nil {
+// 		return JwtClaim{}, errors.New("Invalid Token")
+// 	}
+// 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+// 		jwtUser := JwtClaim{
+// 			Sub:      readClaim("sub", claims),
+// 			Aud:      marshalAud(claims["aud"]),
+// 			Roles:    readClaimArray(claims["roles"]),
+// 			UserName: readClaim("preferred_username", claims),
+// 			Email:    readClaim("email", claims),
+// 			Claims:   claims,
+// 		}
+// 		return jwtUser, nil
+// 	} else {
+// 		return JwtClaim{}, errors.New("Invalid Token")
+// 	}
 
-}
+// }
 
 func readClaim(claimname string, claims jwt.MapClaims) string {
 	claim, ok := claims[claimname]
@@ -207,7 +207,7 @@ func readClaim(claimname string, claims jwt.MapClaims) string {
 }
 
 func loadKeyFile(filePath string) (*rsa.PublicKey, error) {
-	publicKeyBytes, err := ioutil.ReadFile(filePath)
+	publicKeyBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
