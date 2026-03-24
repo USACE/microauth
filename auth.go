@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // Public Key Resource Types
@@ -21,8 +21,8 @@ const (
 	KeycloakUrl     = 2 //Public key is retrieved from keycloak service at the provided url
 )
 
-type AuthRouteFunction func(c echo.Context, store interface{}, roles []int, claims JwtClaim) bool
-type AuthMiddlewareFunction func(c echo.Context, store interface{}, claims JwtClaim) bool
+type AuthRouteFunction func(c *echo.Context, store interface{}, roles []int, claims JwtClaim) bool
+type AuthMiddlewareFunction func(c *echo.Context, store interface{}, claims JwtClaim) bool
 
 type Auth struct {
 	//VerifyKey      *rsa.PublicKey
@@ -34,7 +34,7 @@ type Auth struct {
 }
 
 func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		claims, err := a.marshalJwt(tokenString)
@@ -51,7 +51,7 @@ func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func (a *Auth) AuthorizeRoute(handler echo.HandlerFunc, roles ...int) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		return a.authorization(tokenString, handler, c, roles)
@@ -59,15 +59,15 @@ func (a *Auth) AuthorizeRoute(handler echo.HandlerFunc, roles ...int) echo.Handl
 }
 
 func (a *Auth) AuthorizeForm(handler echo.HandlerFunc, roles ...int) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		tokenString := c.FormValue("authorization")
 		return a.authorization(tokenString, handler, c, roles)
 	}
 }
 
-func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c echo.Context, roles []int) error {
+func (a *Auth) authorization(tokenString string, handler echo.HandlerFunc, c *echo.Context, roles []int) error {
 	claims, err := a.marshalJwt(tokenString)
-	if err != nil || Contains_string(claims.Aud, a.Aud) {
+	if err != nil || !Contains_string(claims.Aud, a.Aud) {
 		log.Print(err)
 		return echo.NewHTTPError(http.StatusUnauthorized, "bad token")
 	}

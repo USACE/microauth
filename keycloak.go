@@ -16,11 +16,11 @@ type KeycloakRealm struct {
 }
 
 /*
-	Fetch the public key from a keycloak instance.
-	realmUri string should be the full url to the realm
-	{host}/{context}/realms/{realm}
-	for example
-	mykeycloak/auth/realms/myrealm
+Fetch the public key from a keycloak instance.
+realmUri string should be the full url to the realm
+{host}/{context}/realms/{realm}
+for example
+mykeycloak/auth/realms/myrealm
 */
 func FetchKeycloakRealmInfo(realmUri string) (KeycloakRealm, error) {
 	info := KeycloakRealm{}
