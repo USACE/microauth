@@ -90,7 +90,7 @@ func (a *Auth) LoadVerificationKey(options VerificationKeyOptions) error {
 	case KeyFile:
 		return a.LoadVerificationKeyFile(options.KeyVal)
 	case KeycloakUrl:
-		realmInfo, err := FetchKeycloakRealmInfo(options.KeyVal)
+		realmInfo, err := FetchKeycloakRealmInfo(options.KeyVal, true)
 		if err != nil {
 			return err
 		}
