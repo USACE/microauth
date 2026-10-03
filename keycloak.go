@@ -21,6 +21,7 @@ const (
 	defaultTimeoutSeconds time.Duration = 10 * time.Second
 )
 
+// KeycloakRealmInfo contains metadata about a Keycloak realm, including its public key.
 type KeycloakRealmInfo struct {
 	AccountService  string `json:"account-service"`
 	PublicKey       string `json:"public_key"`
@@ -29,11 +30,13 @@ type KeycloakRealmInfo struct {
 	TokensNotBefore int    `json:"tokens-not-before"`
 }
 
+// RsaPublicKey parses the PublicKey string from the realm info into an RSA public key.
 func (kri *KeycloakRealmInfo) RsaPublicKey() (*rsa.PublicKey, error) {
 	key := fmt.Sprintf("-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----", kri.PublicKey)
 	return jwt.ParseRSAPublicKeyFromPEM([]byte(key))
 }
 
+// KeycloakToken represents the standard response from a Keycloak token endpoint.
 type KeycloakToken struct {
 	AccessToken  string `json:"access_token"`
 	ExpiresIn    int    `json:"expires_in"`
@@ -42,17 +45,20 @@ type KeycloakToken struct {
 	Scope        string `json:"scope"`
 }
 
+// KeycloakConfig provides configuration parameters for initializing a KeycloakService.
 type KeycloakConfig struct {
 	KeycloakUrl        string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
 }
 
+// KeycloakService provides methods to interact with a Keycloak identity provider.
 type KeycloakService struct {
 	KeycloakUrl string
 	httpClient  *http.Client
 }
 
+// NewKeycloakService initializes a new KeycloakService with the provided configuration.
 func NewKeycloakService(cfg KeycloakConfig) *KeycloakService {
 	tr := &http.Transport{
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.InsecureSkipVerify},
@@ -72,6 +78,7 @@ func NewKeycloakService(cfg KeycloakConfig) *KeycloakService {
 	}
 }
 
+// GetRealmInfo fetches the realm configuration from the Keycloak server.
 func (ks *KeycloakService) GetRealmInfo(ctx context.Context, realm string) (KeycloakRealmInfo, error) {
 	info := KeycloakRealmInfo{}
 	url := fmt.Sprintf(keycloakRealmTemplate, strings.TrimSuffix(ks.KeycloakUrl, "/"), realm)
@@ -96,6 +103,7 @@ func (ks *KeycloakService) GetRealmInfo(ctx context.Context, realm string) (Keyc
 	return info, err
 }
 
+// TokenExchangeInput defines the parameters required for a Keycloak token exchange operation.
 type TokenExchangeInput struct {
 	DelegateClientId       string
 	DelegateClientSecret   string
@@ -104,6 +112,7 @@ type TokenExchangeInput struct {
 	OptionalRequestedScope string
 }
 
+// TokenExchangeResponse represents the response from a Keycloak token exchange request.
 type TokenExchangeResponse struct {
 	AccessToken      string `json:"access_token"`
 	ExpiresIn        int    `json:"expires_in"`
@@ -113,6 +122,7 @@ type TokenExchangeResponse struct {
 	Scope            string `json:"scope"`
 }
 
+// TokenExchange performs a token exchange operation in Keycloak to obtain a new token for a different audience.
 func (ks *KeycloakService) TokenExchange(ctx context.Context, realm string, input TokenExchangeInput) (string, error) {
 	tokenExchangeUrl := fmt.Sprintf(keycloakTokenTemplate, strings.TrimSuffix(ks.KeycloakUrl, "/"), realm)
 	form := url.Values{}
@@ -156,6 +166,7 @@ func (ks *KeycloakService) TokenExchange(ctx context.Context, realm string, inpu
 	return tokenResp.AccessToken, nil
 }
 
+// DirectGrant performs a direct grant (Resource Owner Password Credentials) flow to obtain a token.
 func (ks *KeycloakService) DirectGrant(ctx context.Context, realm, clientID, username, password string) (KeycloakToken, error) {
 	var tokenResponse KeycloakToken
 	tokenUrl := fmt.Sprintf(keycloakTokenTemplate, strings.TrimSuffix(ks.KeycloakUrl, "/"), realm)
@@ -194,6 +205,7 @@ func (ks *KeycloakService) DirectGrant(ctx context.Context, realm, clientID, use
 	return tokenResponse, nil
 }
 
+// ValidateToken validates a JWT string against a provided KeycloakRealmInfo.
 func (ks *KeycloakService) ValidateToken(realmInfo KeycloakRealmInfo, tokenstring string, destClaims jwt.Claims) error {
 	publicKey, err := realmInfo.RsaPublicKey()
 	if err != nil {
@@ -221,6 +233,7 @@ realmUri string should be the full url to the realm
 for example
 mykeycloak/auth/realms/myrealm
 */
+// FetchKeycloakRealmInfo is a legacy function that fetches realm info from a URI.
 func FetchKeycloakRealmInfo(realmUri string, insecureSkipVerify bool) (KeycloakRealmInfo, error) {
 	info := KeycloakRealmInfo{}
 
