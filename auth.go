@@ -52,7 +52,6 @@ func (a *Auth) AuthorizeMiddleware(handler echo.HandlerFunc) echo.HandlerFunc {
 		tokenString := strings.TrimPrefix(auth, "Bearer ")
 		claims, err := a.marshalJwt(tokenString)
 		if err != nil || !Contains_string(claims.Aud, a.Aud) {
-			log.Print(err)
 			return echo.NewHTTPError(http.StatusUnauthorized, "bad token")
 		}
 		if a.AuthMiddleware != nil && a.AuthMiddleware(c, a.Store, claims) {

@@ -98,6 +98,17 @@ err := auth.LoadVerificationKey(microauth.VerificationKeyOptions{
 Use `AuthorizeMiddleware` to protect entire groups of routes. This validates the token and checks the `aud` claim.
 
 ```go
+func MyAuthMiddlewareFunction(c *echo.Context, store any, claims microauth.JwtClaim) bool {
+	//check store...do what you need to do and return a bool
+	return true 
+}
+
+auth := &microauth.Auth{
+    Aud: "your-expected-audience",
+    Store: myDataStore, // Optional: pass custom store for AuthRoute/AuthMiddleware
+    AuthMiddleware: MyAuthMiddlewareFunction
+}
+
 e := echo.New()
 api := e.Group("/api/v1")
 

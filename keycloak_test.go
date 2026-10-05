@@ -59,7 +59,7 @@ func TestKeycloakService(t *testing.T) {
 
 	delegateToken, err := ks.TokenExchange(context.Background(), realm, TokenExchangeInput{
 		DelegateClientId:     "ccapi-delegate",
-		DelegateClientSecret: "IdtmN0CnNdn40xgfvkp6AU2Ef9ZweIs8",
+		DelegateClientSecret: "thesecret",
 		UserAccessToken:      userToken.AccessToken,
 		DownstreamAud:        "ccapi-delegate",
 	})
